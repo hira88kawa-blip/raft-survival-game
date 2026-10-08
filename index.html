@@ -1,0 +1,194 @@
+let player={x:50,y:50};
+let hp=100;
+let food=5;
+let water=5;
+let wood=5;
+let fish=0;
+let raftSize=1;
+let spear=false;
+let seconds=0;
+let isGameOver=false; // ゲーム終了フラグ
+
+const game=document.getElementById("game");
+const p=document.getElementById("player");
+const raft=document.getElementById("raft");
+const msg=document.getElementById("message");
+
+function update(){
+    p.style.left=player.x+"%";
+    p.style.top=player.y+"%";
+    document.getElementById("hp").textContent=hp;
+    document.getElementById("food").textContent=food;
+    document.getElementById("water").textContent=water;
+    document.getElementById("wood").textContent=wood;
+    document.getElementById("fish").textContent=fish;
+    document.getElementById("time").textContent=seconds;
+    
+    if(isGameOver) return;
+
+    let safe=onRaft();
+    if(safe){
+        msg.textContent="🟢 ラフトの上は安全！サメは攻撃できません";
+    }else{
+        msg.textContent="🔴 海の上！サメに注意！";
+    }
+    
+    let size=1+(raftSize-1)*0.15;
+    raft.style.width=(190*size)+"px";
+    raft.style.height=(130*size)+"px";
+}
+
+function onRaft(){
+    let w=25+(raftSize-1)*4;
+    let h=20+(raftSize-1)*3;
+    return Math.abs(player.x-50)<w && Math.abs(player.y-50)<h;
+}
+
+function move(dx,dy){
+    if(isGameOver) return;
+    player.x+=dx*3;
+    player.y+=dy*3;
+    player.x=Math.max(2,Math.min(95,player.x));
+    player.y=Math.max(5,Math.min(92,player.y));
+    update();
+}
+
+// ⌨️ キーボード操作の追加 (PC対応)
+window.addEventListener("keydown", (e) => {
+    if(e.key === "ArrowUp" || e.key === "w") move(0, -1);
+    if(e.key === "ArrowDown" || e.key === "s") move(0, 1);
+    if(e.key === "ArrowLeft" || e.key === "a") move(-1, 0);
+    if(e.key === "ArrowRight" || e.key === "d") move(1, 0);
+});
+
+function eat(){
+    if(food>0 && !isGameOver){ food--; hp=Math.min(100,hp+20); update(); }
+}
+function drink(){
+    if(water>0 && !isGameOver){ water--; hp=Math.min(100,hp+10); update(); }
+}
+function cook(){
+    if(fish>0 && wood>0 && !isGameOver){ fish--; wood--; food+=2; update(); }
+}
+function makeWater(){
+    if(wood>=2 && !isGameOver){ wood-=2; water++; update(); }
+}
+function expandRaft(){
+    if(wood>=4 && !isGameOver){ wood-=4; raftSize++; update(); }
+}
+function makeSpear(){
+    if(wood>=2 && !spear && !isGameOver){ wood-=2; spear=true; msg.textContent="🔱 槍を作った！サメを追い払えます"; update(); }
+}
+
+/* 流れてくるアイテム */
+function spawnItem(){
+    if(isGameOver) return;
+    let item=document.createElement("div");
+    item.className="item";
+    let type=Math.floor(Math.random()*3);
+    if(type===0){ item.textContent="🪵"; item.dataset.type="wood"; }
+    else if(type===1){ item.textContent="🐟"; item.dataset.type="fish"; }
+    else { item.textContent="🥫"; item.dataset.type="food"; }
+    
+    item.style.left=Math.random()*90+"%";
+    item.style.top=Math.random()*80+10+"%";
+    game.appendChild(item);
+    
+    let timer=setInterval(()=>{
+        if (!item.parentNode) { clearInterval(timer); return; }
+        let a=item.getBoundingClientRect();
+        let b=p.getBoundingClientRect();
+        if(Math.abs(a.left-b.left)<35 && Math.abs(a.top-b.top)<35){
+            if(item.dataset.type==="wood")wood++;
+            if(item.dataset.type==="fish")fish++;
+            if(item.dataset.type==="food")food++;
+            item.remove();
+            clearInterval(timer);
+            update();
+        }
+    },200);
+    setTimeout(()=>{ if(item.parentNode){item.remove(); clearInterval(timer);} },8000);
+}
+
+/* サメ */
+function spawnShark(){
+    if(isGameOver) return;
+    let shark=document.createElement("div");
+    shark.className="shark";
+    shark.textContent="🦈";
+    shark.style.left=Math.random()<0.5?"0%":"90%";
+    shark.style.top=Math.random()*80+10+"%";
+    game.appendChild(shark);
+    
+    let timer=setInterval(()=>{
+        if (!shark.parentNode || isGameOver) { clearInterval(timer); shark.remove(); return; }
+        let sx=parseFloat(shark.style.left);
+        let sy=parseFloat(shark.style.top);
+        
+        if(!onRaft()){
+            let dx=player.x-sx;
+            let dy=player.y-sy;
+            let d=Math.sqrt(dx*dx+dy*dy);
+            if(d>1){ sx+=dx/d*1.5; sy+=dy/d*1.5; } // 追尾速度を少しだけ調整
+            
+            if(d<6){
+                if(spear){
+                    sx=Math.random()<0.5?5:90;
+                    sy=Math.random()*80+10;
+                    msg.textContent="🔱 槍でサメを追い払った！";
+                }else{
+                    hp-=20; // ダメージのバランス調整
+                    msg.textContent="🦈 痛い！サメに噛まれた！";
+                    // 💥 連続ヒットを防ぐため、攻撃成功後にサメをリセット
+                    sx=Math.random()<0.5?5:90;
+                    sy=Math.random()*80+10;
+                }
+            }
+        } else {
+            sx += (Math.random() - 0.5) * 2;
+            sy += (Math.random() - 0.5) * 2;
+        }
+        shark.style.left=Math.max(0,Math.min(95,sx))+"%";
+        shark.style.top=Math.max(5,Math.min(92,sy))+"%";
+        
+        if(hp<=0 && !isGameOver){
+            isGameOver=true;
+            clearInterval(timer);
+            endGame("💀 GAME OVER\nサメにやられてしまった！");
+        }
+        update();
+    },500);
+    setTimeout(()=>{ if(shark.parentNode){shark.remove(); clearInterval(timer);} },15000);
+}
+
+/* ゲーム終了処理 */
+function endGame(text) {
+    isGameOver = true;
+    setTimeout(() => {
+        alert(text);
+        location.reload();
+    }, 100);
+}
+
+/* 時間経過と生存システム */
+setInterval(()=>{
+    if(isGameOver) return;
+    seconds++;
+    if(seconds%6===0){ food=Math.max(0,food-1); }
+    if(seconds%8===0){ water=Math.max(0,water-1); }
+    if(food===0 || water===0){
+        hp-=5;
+        msg.textContent="⚠️ 飢えや渇きでダメージを受けている！";
+    }
+    if(hp<=0){
+        endGame("💀 GAME OVER\n餓死、または脱水症状になってしまった！");
+    }
+    if(seconds>=60){
+        endGame("🎉 生存成功！\n60秒間生き残りました！");
+    }
+    update();
+},1000);
+
+setInterval(spawnItem,2500);
+setInterval(spawnShark,6000); // サメの出現頻度を少し上げて緊張感をアップ
+update();
