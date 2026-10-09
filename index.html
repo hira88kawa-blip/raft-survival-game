@@ -1,0 +1,46 @@
+DOCTYPE html>
+<html lang="ja"><head><meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<title>■■■■■■■■■■</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#087eaa;color:white;font-family:-apple-system,BlinkMacSystemFont,sans-serif} header{padding:10px;background:#064b72;font-weight:bold}#stats{font-size:14px;line-height:1.7} canvas{display:block;width:100%;height:50vh;min-height:330px;background:#159dc5}
+#msg{padding:10px;background:#075777;min-height:40px;font-size:14px} #actions,#controls{display:grid;grid-template-columns:repeat(2,1fr);gap:7px;padding:8px;background:#063d5d} #controls{grid-template-columns:repeat(3,1fr);background:#052f49}
+button{border:0;border-radius:10px;padding:11px 5px;min-height:45px;font-size:15px;font-weight:bold;color:#17364a;background:#f4f6f7} .empty{visibility:hidden}#restart{background:#ffd166}
+</style></head><body>
+<header>■ ■■■■■■■■■■<div id="stats"></div></header>
+<canvas id="game" width="800" height="560"></canvas><div id="msg">■■■■■■■■■■■■■</div>
+<div id="actions">
+<button id="eat">■ ■■■</button><button id="drink">■ ■■■■</button>
+<button id="cook">■ ■■■■■■1■■■1■</button><button id="makeWater">■ ■■■■■■■2■</button>
+<button id="expand">■ ■■■■■■■■4■</button><button id="spear">■ ■■■■■■■■2■</button>
+<button id="fish">■ ■■■■■</button><button id="restart">■ ■■■■</button></div>
+<div id="controls"><button class="empty">■</button><button data-m="0,-1">■■</button><button class="empty">■</button>
+<button data-m="-1,0">■■</button><button data-m="0,1">■■</button><button data-m="1,0">➡■</button></div>
+<script>
+(()=>{
+const c=document.getElementById('game'),ctx=c.getContext('2d'),stats=document.getElementById('stats'),msg=document.getElementById('msg');
+let p,s,items,wood,food,water,fish,hp,t,size,spear,over,invuln;
+function bounds(){return{x1:50-12-size*2,x2:50+12+size*2,y1:44-size*1.5,y2:62+size*1.5}}
+function safe(x=p.x,y=p.y){let b=bounds();return x>=b.x1&&x<=b.x2&&y>=b.y1&&y<=b.y2}
+function spawn(){let types=['wood','wood','food','fish'],x,y,n=0;do{x=4+Math.random()*92;y=4+Math.random()*62;n++}while(safe(x,y)&&n<30);items.push({x,y,type: types[Math.floor(Math.random()*4)]})}
+function reset(){p={x:50,y:52};s={x:15,y:15};items=[];wood=0;food=3;water=3;fish=0;hp=100;t=0;size=1;spear=false;over=false;invuln=0;for(let i=0;i<9;i++)spawn( );msg.textContent='■ ■■■■■■■■■■■■■■■■■■■■■■■■■■■■■■';statsUpdate();draw()}
+function statsUpdate(){stats.innerHTML=`❤■■■ ${hp}■■■■ ${food}■■■ ${water}<br>■■■ ${wood}■■■ ${fish}■■■ ${t}■ ${spear?'■■■':''}`}
+function move(dx,dy){if(over)return;p.x=Math.max(2,Math.min(98,p.x+dx*2.8));p.y=Math.max(2,Math.min(68,p.y+dy*2.8));for(let i=items.length-1;i>=0;i--){let a=items[i];if(Math.hypot(a.x-p.x,a.y-p.y)<4.5){if(a.type==='wood')wood++;if(a.type==='food')food++;if(a.type==='fish')fish++;items.splice(i,1);spawn();msg. textContent='■■■■■■■■■'}}statsUpdate();draw()}
+function respawn(){p.x=50;p.y=52;hp=65;food=Math.max(food,1);water=Math.max(water,1);invuln=4;msg.textContent='■ ■■■■■■■■■■■■■■■■■■'}
+function tick(){if(over)return;t++;if(t%7===0){food=Math.max(0,food-1);water=Math.max(0,water-1)}if(food===0&&t%3===0)hp-=2;if(water===0&&t%2===0)hp-=3;if( invuln>0)invuln--;
+if(!safe()){let dx=p.x-s.x,dy=p.y-s.y,d=Math.hypot(dx,dy)||1;s.x+=dx/d*.65;s.y+=dy/d*.65;if(d<5.2&&invuln===0){if(spear){s.x=15+Math.random()*20;s.y=10+Math. random()*20;msg.textContent='■ ■■■■■■■■■■■■'}else{hp-=12;invuln=2;msg.textContent='■ ■■■■■■■■■■■■■■■■'}}}else{s.x=17+Math.sin(t/9)*3;s.y=15+Math.cos(t/11)*3} if(Math.random()<.22&&items.length<14)spawn();if(hp<=0)respawn();if(t>=60){over=true;msg.textContent='■ 60■■■■■■■■■'}statsUpdate();draw()}
+function draw(){ctx.clearRect(0,0,800,560);ctx.fillStyle='#159dc5';ctx.fillRect(0,0,800,560);
+for(let i=0;i<75;i++){let x=(i*137+t*2)%800,y=(i*71+Math.sin(t/5+i)*8)%560;ctx.strokeStyle='rgba(255,255,255,.28)';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(x, y);ctx.lineTo(x+15,y-2);ctx.stroke()}
+const X=x=>x*8,Y=y=>y*8,b=bounds(),x=X(b.x1),y=Y(b.y1),w=X(b.x2-b.x1),h=Y(b.y2-b.y1);
+// raft: solid wooden planks, always drawn before player and items
+ctx.fillStyle='#513016';ctx.fillRect(x-7,y-7,w+14,h+14);
+ctx.fillStyle='#a96528';ctx.fillRect(x,y,w,h);
+for(let yy=y+4;yy<y+h;yy+=16){ctx.fillStyle='#d79a52';ctx.fillRect(x+3,yy,w-6,3);ctx.strokeStyle='#75451f';ctx.lineWidth=1;ctx.strokeRect(x+3,yy,w-6,13)} ctx.strokeStyle='#4d2d16';ctx.lineWidth=4;ctx.strokeRect(x,y,w,h);
+// visible campfire
+ctx.fillStyle='#57351e';ctx.fillRect(X(47.5),Y(49),40,22);ctx.font='28px sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('■',X(50),Y( 50));
+for(let a of items){ctx.font='25px sans-serif';ctx.fillText(a.type==='wood'?'■':a.type==='food'?'■':'■',X(a.x),Y(a.y))}
+ctx.font='34px sans-serif';ctx.fillText('■',X(s.x),Y(s.y));ctx.font='30px sans-serif';ctx.fillText(invuln?'■■':'■',X(p.x),Y(p.y)); ctx.fillStyle=safe()?'rgba(0,70,20,.85)':'rgba(120,0,0,.8)';ctx.fillRect(8,8,270,32);ctx.fillStyle='white';ctx.font='bold 16px sans-serif';ctx.textAlign='left'; ctx.fillText(safe()?'■ ■■■■■■■■■■':'■ ■■■■■■■■■■',16,29)} document.querySelectorAll('[data-m]').forEach(b=>b.onclick=()=>move(...b.dataset.m.split(',').map(Number))); document.addEventListener('keydown',e=>{if(e.key==='ArrowUp')move(0,-1);if(e.key==='ArrowDown')move(0,1);if(e.key==='ArrowLeft')move(-1,0);if(e. key==='ArrowRight')move(1,0)});
+document.getElementById('drink').onclick=()=>{if(water>0){water--;hp=Math.min(100,hp+12);msg.textContent='■■■■■■■■'}else msg.textContent='■■■■■■■';statsUpdate( );draw()};
+document.getElementById('cook').onclick=()=>{if(fish>0&&wood>0){fish--;wood--;food+=2;msg.textContent='■■■■■■■2■■■■■■■■'}else msg.textContent='■1■■■■1■■■■■■'; statsUpdate();draw()};
+document.getElementById('makeWater').onclick=()=>{if(wood>=2){wood-=2;water++;msg.textContent='■■■■■■■■'}else msg.textContent='■■2■■■■■■';statsUpdate();draw()}; document.getElementById('expand').onclick=()=>{if(wood>=4){wood-=4;size=Math.min(4,size+1);msg.textContent='■■■■■■■■■■■■■■■■■■■'}else msg. textContent='■■4■■■■■■';statsUpdate();draw()}; document.getElementById('spear').onclick=()=>{if(wood>=2){wood-=2;spear=true;msg.textContent='■■■■■■■■■■■■■■■■■■■■'}else msg.textContent='■■2■■■■■■'; statsUpdate();draw()};
+document.getElementById('fish').onclick=()=>{if(safe()){fish++;msg.textContent='■■■■■■■1■■■■■'}else msg.textContent='■■■■■■■■■■■■■';statsUpdate();draw()};document.getElementById('eat').onclick=()=>{if(food>0){food--;hp=Math.min(100,hp+18);msg.textContent='■■■■■■■■■■■'}else msg.textContent='■■■■■■■■';statsU
